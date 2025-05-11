@@ -25,6 +25,9 @@ class AuthService {
 
     // Callbacks for sign-in state changes
     this.signInChangeCallbacks = [];
+
+    // Google Identity Services client
+    this.tokenClient = null;
   }
 
   // Initialize the Google API client
@@ -32,65 +35,138 @@ class AuthService {
     return new Promise((resolve, reject) => {
       console.log('Initializing Google API client...');
 
-      // Load the auth2 library and sheets API
-      gapi.load('client:auth2', async () => {
-        try {
-          console.log('Loaded client:auth2, initializing client...');
+      // Load the Google API client library
+      const script1 = document.createElement('script');
+      script1.src = 'https://apis.google.com/js/api.js';
+      script1.async = true;
+      script1.defer = true;
+      script1.onload = () => {
+        // Load the Google Identity Services library
+        const script2 = document.createElement('script');
+        script2.src = 'https://accounts.google.com/gsi/client';
+        script2.async = true;
+        script2.defer = true;
+        script2.onload = () => this.initGapiClient(resolve, reject);
+        document.body.appendChild(script2);
+      };
+      document.body.appendChild(script1);
+    });
+  }
 
-          await gapi.client.init({
-            apiKey: this.API_KEY,
-            clientId: this.CLIENT_ID,
-            discoveryDocs: this.DISCOVERY_DOCS,
-            scope: this.SCOPES,
-          });
+  // Initialize the GAPI client
+  async initGapiClient(resolve, reject) {
+    try {
+      // Initialize the GAPI client
+      await new Promise((res, rej) => {
+        gapi.load('client', { callback: res, onerror: rej });
+      });
 
-          console.log('Client initialized, loading sheets API...');
+      // Initialize the client
+      await gapi.client.init({
+        apiKey: this.API_KEY,
+        discoveryDocs: this.DISCOVERY_DOCS,
+      });
 
-          // Explicitly load the sheets API
-          await gapi.client.load('sheets', 'v4');
+      // Load the sheets API
+      await gapi.client.load('sheets', 'v4');
+      console.log('Sheets API loaded successfully');
 
-          console.log('Sheets API loaded successfully');
-          console.log('Available APIs:', gapi.client);
-
-          if (!gapi.auth2) {
-            console.error('gapi.auth2 is not available');
-            reject(new Error('gapi.auth2 is not available'));
-            return;
-          }
-
-          // Listen for sign-in state changes
-          gapi.auth2.getAuthInstance().isSignedIn.listen(this.updateSignInStatus.bind(this));
-
-          // Handle the initial sign-in state
-          this.updateSignInStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
-
-          console.log('Auth initialization complete');
-          resolve();
-        } catch (error) {
-          console.error('Error initializing Google API client', error);
+      // Initialize the token client
+      this.tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: this.CLIENT_ID,
+        scope: this.SCOPES,
+        callback: this.handleTokenResponse.bind(this),
+        error_callback: (error) => {
+          console.error('Token client error:', error);
+          this.updateSignInStatus(false);
           reject(error);
         }
       });
-    });
+
+      // Check if we have a stored token
+      const storedToken = localStorage.getItem('gapi_access_token');
+      const storedExpiry = localStorage.getItem('gapi_token_expiry');
+
+      if (storedToken && storedExpiry && new Date().getTime() < parseInt(storedExpiry)) {
+        // We have a valid token
+        gapi.client.setToken({ access_token: storedToken });
+        this.accessToken = storedToken;
+        this.updateSignInStatus(true);
+      } else {
+        // No valid token
+        this.updateSignInStatus(false);
+      }
+
+      console.log('Auth initialization complete');
+      resolve();
+    } catch (error) {
+      console.error('Error initializing Google API client', error);
+      reject(error);
+    }
+  }
+
+  // Handle token response
+  handleTokenResponse(tokenResponse) {
+    console.log('Token response:', tokenResponse);
+
+    if (tokenResponse && tokenResponse.access_token) {
+      this.accessToken = tokenResponse.access_token;
+
+      // Store the token and expiry
+      localStorage.setItem('gapi_access_token', tokenResponse.access_token);
+      const expiryTime = new Date().getTime() + (tokenResponse.expires_in * 1000);
+      localStorage.setItem('gapi_token_expiry', expiryTime.toString());
+
+      // Set the token for API calls
+      gapi.client.setToken({ access_token: tokenResponse.access_token });
+
+      // Fetch user profile
+      this.fetchUserProfile().then(() => {
+        this.updateSignInStatus(true);
+      });
+    } else {
+      this.updateSignInStatus(false);
+    }
+  }
+
+  // Fetch user profile
+  async fetchUserProfile() {
+    try {
+      const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`
+        }
+      });
+
+      if (response.ok) {
+        const userInfo = await response.json();
+        this.currentUser = {
+          profile: {
+            id: userInfo.sub,
+            name: userInfo.name,
+            email: userInfo.email,
+            imageUrl: userInfo.picture
+          }
+        };
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
   }
 
   // Update sign-in status
   updateSignInStatus(isSignedIn) {
     this.isSignedIn = isSignedIn;
 
-    if (isSignedIn) {
-      this.currentUser = gapi.auth2.getAuthInstance().currentUser.get();
-      this.accessToken = this.currentUser.getAuthResponse().access_token;
-      console.log('User is signed in, access token:', this.accessToken);
-
-      // Log more details for debugging
-      console.log('User profile:', this.getUserProfile());
-      console.log('Auth response:', this.currentUser.getAuthResponse());
-      console.log('Scopes granted:', this.currentUser.getGrantedScopes());
-    } else {
+    if (!isSignedIn) {
       this.currentUser = null;
       this.accessToken = null;
+      localStorage.removeItem('gapi_access_token');
+      localStorage.removeItem('gapi_token_expiry');
       console.log('User is not signed in');
+    } else {
+      console.log('User is signed in, access token:', this.accessToken);
+      console.log('User profile:', this.getUserProfile());
     }
 
     // Notify all callbacks
@@ -99,12 +175,43 @@ class AuthService {
 
   // Sign in the user
   signIn() {
-    return gapi.auth2.getAuthInstance().signIn();
+    if (!this.tokenClient) {
+      return Promise.reject(new Error('Token client not initialized'));
+    }
+
+    return new Promise((resolve, reject) => {
+      try {
+        // Request a token
+        this.tokenClient.requestAccessToken({
+          prompt: 'consent',
+          hint: 'divya2000akula@gmail.com'
+        });
+        resolve();
+      } catch (error) {
+        console.error('Sign in error:', error);
+        reject(error);
+      }
+    });
   }
 
   // Sign out the user
   signOut() {
-    return gapi.auth2.getAuthInstance().signOut();
+    if (!this.tokenClient) {
+      return Promise.reject(new Error('Token client not initialized'));
+    }
+
+    return new Promise((resolve) => {
+      // Revoke the token
+      if (this.accessToken) {
+        google.accounts.oauth2.revoke(this.accessToken, () => {
+          this.updateSignInStatus(false);
+          resolve();
+        });
+      } else {
+        this.updateSignInStatus(false);
+        resolve();
+      }
+    });
   }
 
   // Check if the user is signed in
@@ -138,13 +245,7 @@ class AuthService {
       return null;
     }
 
-    const profile = this.currentUser.getBasicProfile();
-    return {
-      id: profile.getId(),
-      name: profile.getName(),
-      email: profile.getEmail(),
-      imageUrl: profile.getImageUrl(),
-    };
+    return this.currentUser.profile;
   }
 }
 
