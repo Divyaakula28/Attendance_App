@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "homepage": "https://divyaakula28.github.io/krishna-attendance-tracker",
+  "homepage": "https://divyaakula28.github.io/krishna-attendance-tracker/",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
