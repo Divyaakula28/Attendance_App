@@ -669,168 +669,7 @@ th, td {
     z-index: 5;
   }
 
-  /* Mobile card view for tables */
-  @media (max-width: 768px) {
-    .responsive-table-container table,
-    .responsive-table-container thead {
-      display: none;
-    }
-
-    .mobile-card-container {
-      padding: 0 10px;
-    }
-
-    /* Card view for mobile */
-    .student-card {
-      display: block;
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-      margin-bottom: 12px;
-      padding: 12px;
-      border: 1px solid #e0e0e0;
-      position: relative;
-      background-image: url('../krishna.png');
-      background-position: right bottom;
-      background-repeat: no-repeat;
-      background-size: 80px;
-      background-blend-mode: lighten;
-      background-color: rgba(255, 255, 255, 0.95);
-    }
-
-    .student-card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding-bottom: 8px;
-      cursor: pointer;
-    }
-
-    .student-card.expanded .student-card-header {
-      border-bottom: 1px solid #f0f0f0;
-      margin-bottom: 8px;
-    }
-
-    .student-card-toggle {
-      color: #5f6368;
-      font-size: 0.8rem;
-      transition: transform 0.2s ease;
-    }
-
-    .student-card.expanded .student-card-toggle {
-      transform: rotate(180deg);
-    }
-
-    .student-card-id {
-      background: #1a73e8;
-      color: white;
-      border-radius: 50%;
-      width: 28px;
-      height: 28px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: bold;
-      font-size: 0.8rem;
-    }
-
-    .student-card-name {
-      font-weight: bold;
-      font-size: 1rem;
-      color: #1a73e8;
-      flex-grow: 1;
-      margin-left: 10px;
-    }
-
-    .student-card-content {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 8px;
-    }
-
-    .student-card-field {
-      margin-bottom: 6px;
-    }
-
-    .student-card-label {
-      font-size: 0.7rem;
-      color: #5f6368;
-      display: block;
-    }
-
-    .student-card-value {
-      font-size: 0.85rem;
-      color: #202124;
-      font-weight: 500;
-    }
-
-    .student-card-school {
-      color: #c5221f;
-    }
-
-    .student-card-class {
-      color: #188038;
-    }
-
-    .student-card-status {
-      padding: 3px 6px;
-      border-radius: 4px;
-      font-size: 0.75rem;
-      display: inline-block;
-    }
-
-    .student-card-status.present {
-      background-color: rgba(46, 125, 50, 0.1);
-      color: #2e7d32;
-    }
-
-    .student-card-status.absent {
-      background-color: rgba(198, 40, 40, 0.1);
-      color: #c62828;
-    }
-
-    .student-card-actions {
-      display: flex;
-      justify-content: flex-end;
-      margin-top: 10px;
-      border-top: 1px solid #f0f0f0;
-      padding-top: 8px;
-    }
-
-    .student-card-actions button {
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-left: 8px;
-      cursor: pointer;
-      font-size: 0.9rem;
-      transition: all 0.2s ease;
-    }
-
-    .student-card-actions .edit-button {
-      background-color: #1a73e8;
-      color: white;
-      border: none;
-    }
-
-    .student-card-actions .edit-button:hover {
-      background-color: #1765cc;
-    }
-
-    .student-card-actions .delete-button-small {
-      background-color: #c62828;
-      color: white;
-      border: none;
-    }
-
-    .student-card-actions .delete-button-small:hover {
-      background-color: #b71c1c;
-    }
-  }
-
+  
   .responsive-table-container tbody {
     display: table-row-group;
   }
@@ -3503,3 +3342,165 @@ table th:first-child {
     font-size: 10px;
   }
 }
+/* Mobile card view for tables */
+  @media (max-width: 768px) {
+    .responsive-table-container table,
+    .responsive-table-container thead {
+      display: none;
+    }
+
+    .mobile-card-container {
+      padding: 0 10px;
+    }
+
+    /* Card view for mobile */
+    .student-card {
+      display: block;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      margin-bottom: 12px;
+      padding: 12px;
+      border: 1px solid #e0e0e0;
+      position: relative;
+      background-image: url('../krishna.png');
+      background-position: right bottom;
+      background-repeat: no-repeat;
+      background-size: 80px;
+      background-blend-mode: lighten;
+      background-color: rgba(255, 255, 255, 0.95);
+    }
+
+    .student-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 8px;
+      cursor: pointer;
+    }
+
+    .student-card.expanded .student-card-header {
+      border-bottom: 1px solid #f0f0f0;
+      margin-bottom: 8px;
+    }
+
+    .student-card-toggle {
+      color: #5f6368;
+      font-size: 0.8rem;
+      transition: transform 0.2s ease;
+    }
+
+    .student-card.expanded .student-card-toggle {
+      transform: rotate(180deg);
+    }
+
+    .student-card-id {
+      background: #1a73e8;
+      color: white;
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 0.8rem;
+    }
+
+    .student-card-name {
+      font-weight: bold;
+      font-size: 1rem;
+      color: #1a73e8;
+      flex-grow: 1;
+      margin-left: 10px;
+    }
+
+    .student-card-content {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .student-card-field {
+      margin-bottom: 6px;
+    }
+
+    .student-card-label {
+      font-size: 0.7rem;
+      color: #5f6368;
+      display: block;
+    }
+
+    .student-card-value {
+      font-size: 0.85rem;
+      color: #202124;
+      font-weight: 500;
+    }
+
+    .student-card-school {
+      color: #c5221f;
+    }
+
+    .student-card-class {
+      color: #188038;
+    }
+
+    .student-card-status {
+      padding: 3px 6px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      display: inline-block;
+    }
+
+    .student-card-status.present {
+      background-color: rgba(46, 125, 50, 0.1);
+      color: #2e7d32;
+    }
+
+    .student-card-status.absent {
+      background-color: rgba(198, 40, 40, 0.1);
+      color: #c62828;
+    }
+
+    .student-card-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 10px;
+      border-top: 1px solid #f0f0f0;
+      padding-top: 8px;
+    }
+
+    .student-card-actions button {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+    }
+
+    .student-card-actions .edit-button {
+      background-color: #1a73e8;
+      color: white;
+      border: none;
+    }
+
+    .student-card-actions .edit-button:hover {
+      background-color: #1765cc;
+    }
+
+    .student-card-actions .delete-button-small {
+      background-color: #c62828;
+      color: white;
+      border: none;
+    }
+
+    .student-card-actions .delete-button-small:hover {
+      background-color: #b71c1c;
+    }
+  }
+
