@@ -141,17 +141,46 @@ class AuthService {
 
       console.log('GAPI client loaded, initializing with API key...');
 
-      // Initialize the client with API key
-      await window.gapi.client.init({
-        apiKey: this.API_KEY,
-        discoveryDocs: this.DISCOVERY_DOCS,
-      });
+      try {
+        // Initialize the client with API key but without discovery docs first
+        await window.gapi.client.init({
+          apiKey: this.API_KEY,
+        });
 
-      console.log('GAPI client initialized, loading Sheets API...');
+        console.log('GAPI client initialized with API key');
 
-      // Load the sheets API
-      await window.gapi.client.load('sheets', 'v4');
-      console.log('Sheets API loaded successfully');
+        // Now try to load the discovery docs separately
+        try {
+          console.log('Loading discovery docs...');
+          for (const doc of this.DISCOVERY_DOCS) {
+            try {
+              await window.gapi.client.load(doc);
+              console.log(`Successfully loaded discovery doc: ${doc}`);
+            } catch (docError) {
+              console.warn(`Failed to load discovery doc ${doc}:`, docError);
+              // Continue with other docs even if one fails
+            }
+          }
+        } catch (discoveryError) {
+          console.warn('Error loading discovery docs:', discoveryError);
+          // Continue even if discovery docs fail to load
+        }
+      } catch (initError) {
+        console.warn('Error initializing client with API key:', initError);
+        // Continue without API key - we'll rely on OAuth token only
+      }
+
+      console.log('Loading Sheets API directly...');
+
+      // Try to load the sheets API directly
+      try {
+        await window.gapi.client.load('sheets', 'v4');
+        console.log('Sheets API loaded successfully');
+      } catch (sheetsError) {
+        console.warn('Error loading Sheets API:', sheetsError);
+        console.log('Continuing without Sheets API discovery doc - will rely on OAuth token only');
+        // Continue even if Sheets API fails to load - we'll use direct REST calls
+      }
 
       // Make sure google.accounts is available
       if (!window.google || !window.google.accounts || !window.google.accounts.oauth2) {

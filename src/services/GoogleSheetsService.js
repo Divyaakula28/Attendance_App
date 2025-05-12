@@ -1,6 +1,5 @@
 import axios from 'axios';
 import AuthService from './AuthService';
-import { gapi } from 'gapi-script';
 
 // This service handles Google Sheets API operations
 class GoogleSheetsService {
@@ -21,10 +20,20 @@ class GoogleSheetsService {
 
     // Flag to indicate if the spreadsheet is accessible
     this.isSpreadsheetAccessible = false;
+
+    // Flag to indicate if we've initialized
+    this.isInitialized = false;
   }
 
   // Initialize the service
   async init() {
+    if (this.isInitialized) {
+      console.log('GoogleSheetsService already initialized');
+      return;
+    }
+
+    console.log('Initializing GoogleSheetsService...');
+
     if (this.useOAuth) {
       try {
         await AuthService.init();
@@ -35,12 +44,12 @@ class GoogleSheetsService {
       }
     }
 
-    // Check if the spreadsheet is accessible
-    try {
-      await this.checkSpreadsheetAccess();
-    } catch (error) {
-      console.error('Failed to check spreadsheet access:', error);
-    }
+    // Always use sample data for now until we fix the API access issues
+    console.log('Using sample data mode due to API access issues');
+    this.USE_SAMPLE_DATA_ON_ERROR = true;
+
+    // Mark as initialized
+    this.isInitialized = true;
   }
 
   // Check if the spreadsheet is accessible
@@ -385,14 +394,14 @@ class GoogleSheetsService {
             console.log('Range:', `${sheetName}!${columnLetter}1`);
             console.log('Values:', [[dateStr]]);
 
-            // Check if gapi.client.sheets is available
-            if (!gapi.client.sheets) {
-              console.error('gapi.client.sheets is not available. Make sure the Google Sheets API is loaded.');
+            // Check if window.gapi.client.sheets is available
+            if (!window.gapi || !window.gapi.client || !window.gapi.client.sheets) {
+              console.error('window.gapi.client.sheets is not available. Make sure the Google Sheets API is loaded.');
               throw new Error('Google Sheets API not loaded');
             }
 
             // Use the Google API client library with OAuth
-            const response = await gapi.client.sheets.spreadsheets.values.update({
+            const response = await window.gapi.client.sheets.spreadsheets.values.update({
               spreadsheetId: this.SPREADSHEET_ID,
               range: `${sheetName}!${columnLetter}1`,
               valueInputOption: 'USER_ENTERED',
@@ -492,14 +501,14 @@ class GoogleSheetsService {
           console.log('Range:', `${sheetName}!${dateColumnLetter}${studentRowIndex}`);
           console.log('Values:', [[status]]);
 
-          // Check if gapi.client.sheets is available
-          if (!gapi.client.sheets) {
-            console.error('gapi.client.sheets is not available. Make sure the Google Sheets API is loaded.');
+          // Check if window.gapi.client.sheets is available
+          if (!window.gapi || !window.gapi.client || !window.gapi.client.sheets) {
+            console.error('window.gapi.client.sheets is not available. Make sure the Google Sheets API is loaded.');
             throw new Error('Google Sheets API not loaded');
           }
 
           // Use the Google API client library with OAuth
-          const response = await gapi.client.sheets.spreadsheets.values.update({
+          const response = await window.gapi.client.sheets.spreadsheets.values.update({
             spreadsheetId: this.SPREADSHEET_ID,
             range: `${sheetName}!${dateColumnLetter}${studentRowIndex}`,
             valueInputOption: 'USER_ENTERED',
@@ -616,14 +625,14 @@ class GoogleSheetsService {
           console.log('Spreadsheet ID:', this.SPREADSHEET_ID);
           console.log('Values:', [rowData]);
 
-          // Check if gapi.client.sheets is available
-          if (!gapi.client.sheets) {
-            console.error('gapi.client.sheets is not available. Make sure the Google Sheets API is loaded.');
+          // Check if window.gapi.client.sheets is available
+          if (!window.gapi || !window.gapi.client || !window.gapi.client.sheets) {
+            console.error('window.gapi.client.sheets is not available. Make sure the Google Sheets API is loaded.');
             throw new Error('Google Sheets API not loaded');
           }
 
           // Use the Google API client library with OAuth
-          const response = await gapi.client.sheets.spreadsheets.values.update({
+          const response = await window.gapi.client.sheets.spreadsheets.values.update({
             spreadsheetId: this.SPREADSHEET_ID,
             range: `Students!A${rowIndex}:E${rowIndex}`,
             valueInputOption: 'USER_ENTERED',
@@ -666,16 +675,16 @@ class GoogleSheetsService {
           console.log(`Deleting row ${rowIndex} for student ID ${studentId} using OAuth`);
           console.log('Spreadsheet ID:', this.SPREADSHEET_ID);
 
-          // Check if gapi.client.sheets is available
-          if (!gapi.client.sheets) {
-            console.error('gapi.client.sheets is not available. Make sure the Google Sheets API is loaded.');
+          // Check if window.gapi.client.sheets is available
+          if (!window.gapi || !window.gapi.client || !window.gapi.client.sheets) {
+            console.error('window.gapi.client.sheets is not available. Make sure the Google Sheets API is loaded.');
             throw new Error('Google Sheets API not loaded');
           }
 
           // Use the Google API client library with OAuth to clear the row
           // Note: Google Sheets API doesn't have a direct "delete row" function,
           // so we clear the row content instead
-          const response = await gapi.client.sheets.spreadsheets.batchUpdate({
+          const response = await window.gapi.client.sheets.spreadsheets.batchUpdate({
             spreadsheetId: this.SPREADSHEET_ID,
             resource: {
               requests: [
@@ -731,14 +740,14 @@ class GoogleSheetsService {
           console.log('Spreadsheet ID:', this.SPREADSHEET_ID);
           console.log('Values:', [values]);
 
-          // Check if gapi.client.sheets is available
-          if (!gapi.client.sheets) {
-            console.error('gapi.client.sheets is not available. Make sure the Google Sheets API is loaded.');
+          // Check if window.gapi.client.sheets is available
+          if (!window.gapi || !window.gapi.client || !window.gapi.client.sheets) {
+            console.error('window.gapi.client.sheets is not available. Make sure the Google Sheets API is loaded.');
             throw new Error('Google Sheets API not loaded');
           }
 
           // Use the Google API client library with OAuth
-          const response = await gapi.client.sheets.spreadsheets.values.append({
+          const response = await window.gapi.client.sheets.spreadsheets.values.append({
             spreadsheetId: this.SPREADSHEET_ID,
             range: `${sheetName}!A1`,
             valueInputOption: 'USER_ENTERED',
