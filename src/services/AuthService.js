@@ -184,24 +184,74 @@ class AuthService {
 
       // Make sure google.accounts is available
       if (!window.google || !window.google.accounts || !window.google.accounts.oauth2) {
-        throw new Error('Google Identity Services not available');
+        console.error('Google Identity Services not available, trying to reload scripts');
+
+        // Try to reload the scripts
+        const script = document.createElement('script');
+        script.src = 'https://accounts.google.com/gsi/client';
+        script.async = true;
+        script.defer = true;
+        document.body.appendChild(script);
+
+        // Wait for script to load
+        await new Promise((res) => {
+          script.onload = res;
+          script.onerror = () => {
+            console.error('Failed to reload GSI script');
+            res();
+          };
+          // Timeout after 5 seconds
+          setTimeout(res, 5000);
+        });
+
+        // Check again
+        if (!window.google || !window.google.accounts || !window.google.accounts.oauth2) {
+          throw new Error('Google Identity Services still not available after reload');
+        }
       }
 
       console.log('Initializing token client...');
 
-      // Initialize the token client
-      this.tokenClient = window.google.accounts.oauth2.initTokenClient({
-        client_id: this.CLIENT_ID,
-        scope: this.SCOPES,
-        callback: (tokenResponse) => {
-          console.log('Token response received');
-          this.handleTokenResponse(tokenResponse);
-        },
-        error_callback: (error) => {
-          console.error('Token client error:', error);
-          this.updateSignInStatus(false);
-        }
-      });
+      // Initialize the token client with retry logic
+      try {
+        console.log('Creating token client with client ID:', this.CLIENT_ID);
+        console.log('Using scopes:', this.SCOPES);
+
+        // Initialize the token client
+        this.tokenClient = window.google.accounts.oauth2.initTokenClient({
+          client_id: this.CLIENT_ID,
+          scope: this.SCOPES,
+          prompt: 'consent', // Force consent screen to ensure fresh token
+          callback: (tokenResponse) => {
+            console.log('Token response received:', tokenResponse);
+            this.handleTokenResponse(tokenResponse);
+          },
+          error_callback: (error) => {
+            console.error('Token client error:', error);
+            this.updateSignInStatus(false);
+            alert('Authentication failed. Please try again.');
+          }
+        });
+      } catch (tokenInitError) {
+        console.error('Error initializing token client:', tokenInitError);
+
+        // Try one more time with a delay
+        console.log('Retrying token client initialization after delay...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        this.tokenClient = window.google.accounts.oauth2.initTokenClient({
+          client_id: this.CLIENT_ID,
+          scope: this.SCOPES,
+          callback: (tokenResponse) => {
+            console.log('Token response received (retry)');
+            this.handleTokenResponse(tokenResponse);
+          },
+          error_callback: (error) => {
+            console.error('Token client error (retry):', error);
+            this.updateSignInStatus(false);
+          }
+        });
+      }
 
       console.log('Token client initialized successfully');
 
@@ -239,9 +289,37 @@ class AuthService {
 
   // Handle token response
   handleTokenResponse(tokenResponse) {
-    console.log('Token response:', tokenResponse);
+    console.log('Token response received');
 
+    // Check for errors in the token response
+    if (tokenResponse && tokenResponse.error) {
+      console.error('Token error:', tokenResponse.error);
+      console.error('Error description:', tokenResponse.error_description || 'No description');
+
+      // Handle specific error cases
+      if (tokenResponse.error === 'invalid_grant' || tokenResponse.error === 'invalid_request') {
+        console.error('Invalid credentials or request. Clearing stored tokens and retrying...');
+
+        // Clear any stored tokens
+        localStorage.removeItem('gapi_access_token');
+        localStorage.removeItem('gapi_token_expiry');
+
+        // Update sign-in status to false
+        this.updateSignInStatus(false);
+
+        // Show error to user
+        alert(`Authentication error: ${tokenResponse.error_description || tokenResponse.error}. Please try again.`);
+        return;
+      }
+
+      // For other errors, just update sign-in status
+      this.updateSignInStatus(false);
+      return;
+    }
+
+    // Process successful token response
     if (tokenResponse && tokenResponse.access_token) {
+      console.log('Access token received successfully');
       this.accessToken = tokenResponse.access_token;
 
       // Store the token and expiry
@@ -250,13 +328,29 @@ class AuthService {
       localStorage.setItem('gapi_token_expiry', expiryTime.toString());
 
       // Set the token for API calls
-      window.gapi.client.setToken({ access_token: tokenResponse.access_token });
+      try {
+        if (window.gapi && window.gapi.client) {
+          window.gapi.client.setToken({ access_token: tokenResponse.access_token });
+          console.log('Token set in GAPI client');
+        } else {
+          console.warn('GAPI client not available, token not set');
+        }
+      } catch (error) {
+        console.error('Error setting token in GAPI client:', error);
+        // Continue anyway as we have the token stored
+      }
 
       // Fetch user profile
       this.fetchUserProfile().then(() => {
+        console.log('User profile fetched, updating sign-in status');
+        this.updateSignInStatus(true);
+      }).catch(error => {
+        console.error('Error fetching user profile:', error);
+        // Still update sign-in status as we have a valid token
         this.updateSignInStatus(true);
       });
     } else {
+      console.warn('No access token in response');
       this.updateSignInStatus(false);
     }
   }
@@ -325,20 +419,65 @@ class AuthService {
 
     if (!this.tokenClient) {
       console.error('Token client not initialized');
-      return Promise.reject(new Error('Token client not initialized'));
+
+      // Try to initialize the token client again
+      console.log('Attempting to re-initialize auth service...');
+      return this.init()
+        .then(() => {
+          if (!this.tokenClient) {
+            console.error('Failed to initialize token client after retry');
+            alert('Failed to initialize Google authentication. Please refresh the page and try again.');
+            return Promise.reject(new Error('Token client not initialized after retry'));
+          }
+          return this.signIn();
+        })
+        .catch(error => {
+          console.error('Error re-initializing auth service:', error);
+          alert('Authentication error. Please refresh the page and try again.');
+          return Promise.reject(error);
+        });
     }
 
     return new Promise((resolve, reject) => {
       try {
         console.log('Requesting access token...');
-        // Request a token
+
+        // Clear any previous tokens
+        localStorage.removeItem('gapi_access_token');
+        localStorage.removeItem('gapi_token_expiry');
+
+        // Request a token with explicit consent to ensure fresh token
         this.tokenClient.requestAccessToken({
           prompt: 'consent',
           hint: 'divya2000akula@gmail.com'
         });
+
+        // Set a timeout to detect if the sign-in flow doesn't complete
+        const timeout = setTimeout(() => {
+          console.warn('Sign-in flow did not complete within expected time');
+          // We don't reject here because the flow might still complete
+        }, 10000);
+
+        // Listen for sign-in state changes
+        const unsubscribe = this.onSignInChanged((isSignedIn) => {
+          clearTimeout(timeout);
+          unsubscribe();
+
+          if (isSignedIn) {
+            console.log('Sign-in successful');
+            resolve();
+          } else {
+            // This might be called if the user cancels the sign-in
+            // We don't reject here because the flow is still considered successful
+            console.log('User did not complete sign-in');
+            resolve();
+          }
+        });
+
         resolve();
       } catch (error) {
         console.error('Sign in error:', error);
+        alert('Sign-in failed. Please try again.');
         reject(error);
       }
     });
