@@ -1,5 +1,5 @@
 import axios from 'axios';
-import AuthService from './AuthService';
+import DirectAuthService from './DirectAuthService';
 
 // This service handles Google Sheets API operations
 class GoogleSheetsService {
@@ -12,10 +12,10 @@ class GoogleSheetsService {
     // https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit
     this.SPREADSHEET_ID = '1jXNAywv0yYTKwMDninwFVsDL8mtbcqmtdanLiH_9MS0';
 
-    // Flag to use sample data when API fails
+    // Flag to use sample data when API fails - set to true to ensure app works even if API fails
     this.USE_SAMPLE_DATA_ON_ERROR = true;
 
-    // Flag to indicate if we're using OAuth
+    // Flag to indicate if we're using OAuth - set to true to use OAuth by default
     this.useOAuth = true;
 
     // Flag to indicate if the spreadsheet is accessible
@@ -34,19 +34,46 @@ class GoogleSheetsService {
 
     console.log('Initializing GoogleSheetsService...');
 
-    if (this.useOAuth) {
+    try {
+      // Test if we can access the spreadsheet with API key first
       try {
-        await AuthService.init();
-        console.log('GoogleSheetsService initialized with OAuth');
+        const testUrl = `https://sheets.googleapis.com/v4/spreadsheets/${this.SPREADSHEET_ID}?key=${this.API_KEY}`;
+        const response = await axios.get(testUrl);
+        console.log('Spreadsheet is accessible with API key:', response.data.properties.title);
+        this.isSpreadsheetAccessible = true;
       } catch (error) {
-        console.error('Failed to initialize with OAuth, falling back to API key', error);
-        this.useOAuth = false;
-      }
-    }
+        console.error('Spreadsheet is not accessible with API key:', error);
+        this.isSpreadsheetAccessible = false;
 
-    // Always use sample data for now until we fix the API access issues
-    console.log('Using sample data mode due to API access issues');
-    this.USE_SAMPLE_DATA_ON_ERROR = true;
+        // Try to initialize OAuth as a fallback
+        if (!this.useOAuth) {
+          console.log('Trying OAuth as fallback...');
+          this.useOAuth = true;
+        }
+      }
+
+      // Initialize OAuth if needed
+      if (this.useOAuth) {
+        try {
+          // No need to initialize DirectAuthService, it's already initialized
+          console.log('GoogleSheetsService initialized with OAuth');
+
+          // Check if user is already signed in
+          if (DirectAuthService.isUserSignedIn()) {
+            console.log('User is already signed in with OAuth');
+          } else {
+            console.log('User is not signed in with OAuth');
+          }
+        } catch (error) {
+          console.error('Failed to initialize with OAuth, will use sample data', error);
+          this.useOAuth = false;
+          this.USE_SAMPLE_DATA_ON_ERROR = true;
+        }
+      }
+    } catch (error) {
+      console.error('Error during initialization:', error);
+      this.USE_SAMPLE_DATA_ON_ERROR = true;
+    }
 
     // Mark as initialized
     this.isInitialized = true;
@@ -95,16 +122,11 @@ class GoogleSheetsService {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  // Fetch data from a Google Sheet with retry logic
-  async getSheetData(sheetName = 'Students', range = 'A1:Z1000', retryCount = 0) {
+  // Fetch data from a Google Sheet
+  async getSheetData(sheetName = 'Students', range = 'A1:Z1000') {
     try {
       console.log(`Fetching data from sheet: ${sheetName}, range: ${range}`);
 
-      // TEMPORARY: Always use sample data due to API access issues
-      console.log('Using sample data due to API access issues');
-      return this.getSampleData(sheetName);
-
-      /* Commented out real API access code until API issues are resolved
       console.log(`Using Spreadsheet ID: ${this.SPREADSHEET_ID}`);
 
       // Try to fetch real data first
@@ -122,13 +144,28 @@ class GoogleSheetsService {
 
       // Return the data even if it's empty
       return response.data.values || [];
-      */
     } catch (error) {
       console.error('Error fetching sheet data:', error);
 
-      // Always return sample data on error
-      console.log('Error occurred, using sample data');
-      return this.getSampleData(sheetName);
+      if (error.response) {
+        console.error('Response status:', error.response.status);
+        console.error('Response data:', error.response.data);
+
+        if (error.response.status === 404) {
+          console.error('Spreadsheet or sheet not found. Please check your spreadsheet ID and sheet name.');
+        } else if (error.response.status === 403) {
+          console.error('Permission denied. Make sure your spreadsheet is shared publicly or with the appropriate permissions.');
+        }
+      }
+
+      // Use sample data on error if configured to do so
+      if (this.USE_SAMPLE_DATA_ON_ERROR) {
+        console.log('Error occurred, using sample data');
+        return this.getSampleData(sheetName);
+      }
+
+      // Otherwise throw the error
+      throw error;
     }
   }
 
@@ -291,17 +328,6 @@ class GoogleSheetsService {
     try {
       console.log(`Getting sheet metadata for: ${sheetName}`);
 
-      // TEMPORARY: Always use mock data due to API access issues
-      console.log('Using mock metadata due to API access issues');
-      return {
-        title: sheetName,
-        gridProperties: {
-          rowCount: 100,
-          columnCount: 10
-        }
-      };
-
-      /* Commented out real API access code until API issues are resolved
       // Try to fetch real metadata first
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${this.SPREADSHEET_ID}`;
       console.log(`Getting sheet metadata: ${url}`);
@@ -323,19 +349,34 @@ class GoogleSheetsService {
       }
 
       return targetSheet.properties;
-      */
     } catch (error) {
       console.error('Error getting sheet metadata:', error);
 
-      // Always return mock data for errors
-      console.log('Error getting sheet metadata, using mock data');
-      return {
-        title: sheetName,
-        gridProperties: {
-          rowCount: 100,
-          columnCount: 10
+      if (error.response) {
+        console.error('Response status:', error.response.status);
+        console.error('Response data:', error.response.data);
+
+        if (error.response.status === 404) {
+          console.error('Spreadsheet not found. Please check your spreadsheet ID.');
+        } else if (error.response.status === 403) {
+          console.error('Permission denied. Make sure your spreadsheet is shared publicly or with the appropriate permissions.');
         }
-      };
+      }
+
+      // Use mock data on error if configured to do so
+      if (this.USE_SAMPLE_DATA_ON_ERROR) {
+        console.log('Error getting sheet metadata, using mock data');
+        return {
+          title: sheetName,
+          gridProperties: {
+            rowCount: 100,
+            columnCount: 10
+          }
+        };
+      }
+
+      // Otherwise throw the error
+      throw error;
     }
   }
 
@@ -368,11 +409,11 @@ class GoogleSheetsService {
 
       console.log('Auth status check:');
       console.log('- useOAuth:', this.useOAuth);
-      console.log('- isUserSignedIn:', AuthService.isUserSignedIn());
-      console.log('- Access token:', AuthService.getAccessToken());
+      console.log('- isUserSignedIn:', DirectAuthService.isUserSignedIn());
+      console.log('- Access token:', DirectAuthService.getAccessToken());
 
       // Check if we're using OAuth and the user is signed in
-      if (this.useOAuth && AuthService.isUserSignedIn()) {
+      if (this.useOAuth && DirectAuthService.isUserSignedIn()) {
         try {
           // Only add a new column if it doesn't exist
           if (existingColumnIndex === -1) {
@@ -381,19 +422,24 @@ class GoogleSheetsService {
             console.log('Range:', `${sheetName}!${columnLetter}1`);
             console.log('Values:', [[dateStr]]);
 
-            // Check if window.gapi.client.sheets is available
-            if (!window.gapi || !window.gapi.client || !window.gapi.client.sheets) {
-              console.error('window.gapi.client.sheets is not available. Make sure the Google Sheets API is loaded.');
-              throw new Error('Google Sheets API not loaded');
-            }
+            // Use axios with the access token from DirectAuthService
+            const accessToken = DirectAuthService.getAccessToken();
+            console.log('Using access token:', accessToken);
 
-            // Use the Google API client library with OAuth
-            const response = await window.gapi.client.sheets.spreadsheets.values.update({
-              spreadsheetId: this.SPREADSHEET_ID,
-              range: `${sheetName}!${columnLetter}1`,
-              valueInputOption: 'USER_ENTERED',
-              values: [[dateStr]]
-            });
+            const response = await axios.put(
+              `https://sheets.googleapis.com/v4/spreadsheets/${this.SPREADSHEET_ID}/values/${sheetName}!${columnLetter}1`,
+              {
+                values: [[dateStr]]
+              },
+              {
+                headers: {
+                  'Authorization': `Bearer ${accessToken}`
+                },
+                params: {
+                  valueInputOption: 'USER_ENTERED'
+                }
+              }
+            );
 
             console.log('Column added successfully:', response);
           } else {
@@ -477,30 +523,35 @@ class GoogleSheetsService {
 
       console.log('Auth status check:');
       console.log('- useOAuth:', this.useOAuth);
-      console.log('- isUserSignedIn:', AuthService.isUserSignedIn());
-      console.log('- Access token:', AuthService.getAccessToken());
+      console.log('- isUserSignedIn:', DirectAuthService.isUserSignedIn());
+      console.log('- Access token:', DirectAuthService.getAccessToken());
 
       // Check if we're using OAuth and the user is signed in
-      if (this.useOAuth && AuthService.isUserSignedIn()) {
+      if (this.useOAuth && DirectAuthService.isUserSignedIn()) {
         try {
           console.log(`Updating cell ${dateColumnLetter}${studentRowIndex} to "${status}" for student ID ${studentId} using OAuth`);
           console.log('Spreadsheet ID:', this.SPREADSHEET_ID);
           console.log('Range:', `${sheetName}!${dateColumnLetter}${studentRowIndex}`);
           console.log('Values:', [[status]]);
 
-          // Check if window.gapi.client.sheets is available
-          if (!window.gapi || !window.gapi.client || !window.gapi.client.sheets) {
-            console.error('window.gapi.client.sheets is not available. Make sure the Google Sheets API is loaded.');
-            throw new Error('Google Sheets API not loaded');
-          }
+          // Use axios with the access token from DirectAuthService
+          const accessToken = DirectAuthService.getAccessToken();
+          console.log('Using access token:', accessToken);
 
-          // Use the Google API client library with OAuth
-          const response = await window.gapi.client.sheets.spreadsheets.values.update({
-            spreadsheetId: this.SPREADSHEET_ID,
-            range: `${sheetName}!${dateColumnLetter}${studentRowIndex}`,
-            valueInputOption: 'USER_ENTERED',
-            values: [[status]]
-          });
+          const response = await axios.put(
+            `https://sheets.googleapis.com/v4/spreadsheets/${this.SPREADSHEET_ID}/values/${sheetName}!${dateColumnLetter}${studentRowIndex}`,
+            {
+              values: [[status]]
+            },
+            {
+              headers: {
+                'Authorization': `Bearer ${accessToken}`
+              },
+              params: {
+                valueInputOption: 'USER_ENTERED'
+              }
+            }
+          );
 
           console.log('Cell updated successfully:', response);
 
@@ -606,25 +657,30 @@ class GoogleSheetsService {
       const { rowIndex } = await this.findStudentRowByID('Students', studentId);
 
       // Check if we're using OAuth and the user is signed in
-      if (this.useOAuth && AuthService.isUserSignedIn()) {
+      if (this.useOAuth && DirectAuthService.isUserSignedIn()) {
         try {
           console.log(`Updating row ${rowIndex} for student ID ${studentId} using OAuth`);
           console.log('Spreadsheet ID:', this.SPREADSHEET_ID);
           console.log('Values:', [rowData]);
 
-          // Check if window.gapi.client.sheets is available
-          if (!window.gapi || !window.gapi.client || !window.gapi.client.sheets) {
-            console.error('window.gapi.client.sheets is not available. Make sure the Google Sheets API is loaded.');
-            throw new Error('Google Sheets API not loaded');
-          }
+          // Use axios with the access token from DirectAuthService
+          const accessToken = DirectAuthService.getAccessToken();
+          console.log('Using access token:', accessToken);
 
-          // Use the Google API client library with OAuth
-          const response = await window.gapi.client.sheets.spreadsheets.values.update({
-            spreadsheetId: this.SPREADSHEET_ID,
-            range: `Students!A${rowIndex}:E${rowIndex}`,
-            valueInputOption: 'USER_ENTERED',
-            values: [rowData]
-          });
+          const response = await axios.put(
+            `https://sheets.googleapis.com/v4/spreadsheets/${this.SPREADSHEET_ID}/values/Students!A${rowIndex}:E${rowIndex}`,
+            {
+              values: [rowData]
+            },
+            {
+              headers: {
+                'Authorization': `Bearer ${accessToken}`
+              },
+              params: {
+                valueInputOption: 'USER_ENTERED'
+              }
+            }
+          );
 
           console.log('Student updated successfully:', response);
           return response.result;
@@ -657,23 +713,19 @@ class GoogleSheetsService {
       const { rowIndex } = await this.findStudentRowByID('Students', studentId);
 
       // Check if we're using OAuth and the user is signed in
-      if (this.useOAuth && AuthService.isUserSignedIn()) {
+      if (this.useOAuth && DirectAuthService.isUserSignedIn()) {
         try {
           console.log(`Deleting row ${rowIndex} for student ID ${studentId} using OAuth`);
           console.log('Spreadsheet ID:', this.SPREADSHEET_ID);
 
-          // Check if window.gapi.client.sheets is available
-          if (!window.gapi || !window.gapi.client || !window.gapi.client.sheets) {
-            console.error('window.gapi.client.sheets is not available. Make sure the Google Sheets API is loaded.');
-            throw new Error('Google Sheets API not loaded');
-          }
+          // Use axios with the access token from DirectAuthService
+          const accessToken = DirectAuthService.getAccessToken();
+          console.log('Using access token:', accessToken);
 
-          // Use the Google API client library with OAuth to clear the row
-          // Note: Google Sheets API doesn't have a direct "delete row" function,
-          // so we clear the row content instead
-          const response = await window.gapi.client.sheets.spreadsheets.batchUpdate({
-            spreadsheetId: this.SPREADSHEET_ID,
-            resource: {
+          // Use the Sheets API to delete the row
+          const response = await axios.post(
+            `https://sheets.googleapis.com/v4/spreadsheets/${this.SPREADSHEET_ID}:batchUpdate`,
+            {
               requests: [
                 {
                   deleteDimension: {
@@ -686,8 +738,13 @@ class GoogleSheetsService {
                   }
                 }
               ]
+            },
+            {
+              headers: {
+                'Authorization': `Bearer ${accessToken}`
+              }
             }
-          });
+          );
 
           console.log('Student deleted successfully:', response);
           return response.result;
@@ -717,30 +774,35 @@ class GoogleSheetsService {
       console.log(`Appending row to sheet: ${sheetName}, values:`, values);
       console.log('Auth status check:');
       console.log('- useOAuth:', this.useOAuth);
-      console.log('- isUserSignedIn:', AuthService.isUserSignedIn());
-      console.log('- Access token:', AuthService.getAccessToken());
+      console.log('- isUserSignedIn:', DirectAuthService.isUserSignedIn());
+      console.log('- Access token:', DirectAuthService.getAccessToken());
 
       // Check if we're using OAuth and the user is signed in
-      if (this.useOAuth && AuthService.isUserSignedIn()) {
+      if (this.useOAuth && DirectAuthService.isUserSignedIn()) {
         try {
           console.log(`Appending row to sheet: ${sheetName} using OAuth`);
           console.log('Spreadsheet ID:', this.SPREADSHEET_ID);
           console.log('Values:', [values]);
 
-          // Check if window.gapi.client.sheets is available
-          if (!window.gapi || !window.gapi.client || !window.gapi.client.sheets) {
-            console.error('window.gapi.client.sheets is not available. Make sure the Google Sheets API is loaded.');
-            throw new Error('Google Sheets API not loaded');
-          }
+          // Use axios with the access token from DirectAuthService
+          const accessToken = DirectAuthService.getAccessToken();
+          console.log('Using access token:', accessToken);
 
-          // Use the Google API client library with OAuth
-          const response = await window.gapi.client.sheets.spreadsheets.values.append({
-            spreadsheetId: this.SPREADSHEET_ID,
-            range: `${sheetName}!A1`,
-            valueInputOption: 'USER_ENTERED',
-            insertDataOption: 'INSERT_ROWS',
-            values: [values]
-          });
+          const response = await axios.post(
+            `https://sheets.googleapis.com/v4/spreadsheets/${this.SPREADSHEET_ID}/values/${sheetName}!A1:append`,
+            {
+              values: [values]
+            },
+            {
+              headers: {
+                'Authorization': `Bearer ${accessToken}`
+              },
+              params: {
+                valueInputOption: 'USER_ENTERED',
+                insertDataOption: 'INSERT_ROWS'
+              }
+            }
+          );
 
           console.log('Row appended successfully:', response);
           return response.result;

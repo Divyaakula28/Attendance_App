@@ -14,13 +14,14 @@
 }
 
 #root {
-  max-width: 1280px;
+  max-width: 100%;
   margin: 0 auto;
   padding: 1rem;
   font-family: 'Poppins', 'Noto Sans', system-ui, Avenir, Helvetica, Arial, sans-serif;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  width: 100%;
 }
 
 .app-container {
@@ -244,11 +245,15 @@ header p {
 
 main {
   flex: 1;
-  padding: 1.8rem;
-  background-color: rgba(255, 255, 255, 0.85);
+  padding: 1.8rem 0.5rem;
+  background-color: rgba(245, 248, 255, 0.9);
   box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
   position: relative;
   backdrop-filter: blur(5px);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 main::before {
@@ -318,6 +323,16 @@ footer::after {
 }
 
 /* Sheet Data Display Component */
+.sheet-data-display,
+.sheet-data-input {
+  width: 100%;
+  max-width: 100%;
+  padding: 0;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  position: relative;
+}
+
 .sheet-data-display h2,
 .sheet-data-input h2 {
   margin-top: 0;
@@ -330,6 +345,10 @@ footer::after {
   gap: 1rem;
   margin-bottom: 1.5rem;
   align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .sheet-controls div {
@@ -556,6 +575,11 @@ footer::after {
   display: flex !important;
   align-items: center !important;
   gap: 0.5rem !important;
+  white-space: nowrap !important;
+  margin-left: auto !important;
+  position: relative !important;
+  z-index: 10 !important;
+  right: 0 !important;
 }
 
 .add-student-button:hover {
@@ -576,6 +600,10 @@ footer::after {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
   border: 1px solid #e0e0e0;
   position: relative;
+  width: 100%;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 
 @media (max-width: 768px) {
@@ -616,6 +644,8 @@ table {
   border-collapse: collapse;
   margin: 0;
   font-size: 0.95rem;
+  table-layout: auto;
+  min-width: 900px; /* Ensures table is wide enough to display all columns */
 }
 
 th, td {
@@ -623,6 +653,43 @@ th, td {
   text-align: left;
   border: 1px solid #e0e0e0;
   white-space: nowrap;
+}
+
+/* Column width adjustments */
+th:nth-child(1), td:nth-child(1) { /* ID column */
+  width: 60px;
+  min-width: 60px;
+}
+
+th:nth-child(2), td:nth-child(2) { /* Name column */
+  width: 180px;
+  min-width: 180px;
+}
+
+th:nth-child(3), td:nth-child(3) { /* School column */
+  width: 200px;
+  min-width: 200px;
+}
+
+th:nth-child(4), td:nth-child(4) { /* Class column */
+  width: 100px;
+  min-width: 100px;
+}
+
+th:nth-child(5), td:nth-child(5) { /* Mobile column */
+  width: 120px;
+  min-width: 120px;
+}
+
+/* Date columns */
+th:nth-child(n+6):nth-child(-n+10), td:nth-child(n+6):nth-child(-n+10) {
+  width: 100px;
+  min-width: 100px;
+}
+
+th:last-child, td:last-child { /* Actions column */
+  width: 100px;
+  min-width: 100px;
 }
 
 @media (max-width: 768px) {
@@ -928,6 +995,10 @@ th {
   top: 0;
   z-index: 10;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Add Krishna-themed background to headers except first column */
+th:not(:first-child) {
   background-image: url('./assets/krishna-crown-watermark.svg');
   background-repeat: no-repeat;
   background-position: right center;
@@ -946,19 +1017,85 @@ tr:nth-child(even):hover {
   background-color: #f5f8ff;
 }
 
-/* Make the first column sticky for better readability */
+/* First column styling (not sticky) */
 table th:first-child,
 table td:first-child {
-  position: sticky;
-  left: 0;
-  background-color: inherit;
-  z-index: 5;
-  box-shadow: 1px 0 2px rgba(0, 0, 0, 0.05);
+  /* Regular styling without sticky positioning */
+  width: 60px;
+  min-width: 60px;
 }
 
-/* Ensure the header corner is above everything */
-table th:first-child {
-  z-index: 15;
+/* Make header row sticky */
+table thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* Ensure all header cells have the same background */
+table th {
+  background: linear-gradient(to right, #f1f3f4, #f8f9fa);
+}
+
+/* Table container styling */
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  margin-bottom: 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  background-color: white;
+  position: relative;
+  padding: 0;
+}
+
+/* Table styling */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+  min-width: 900px;
+}
+
+/* Column width specifications */
+table th:nth-child(2),
+table td:nth-child(2) {
+  width: 180px;
+  min-width: 180px;
+}
+
+table th:nth-child(3),
+table td:nth-child(3) {
+  width: 200px;
+  min-width: 200px;
+}
+
+table th:nth-child(4),
+table td:nth-child(4) {
+  width: 100px;
+  min-width: 100px;
+}
+
+table th:nth-child(5),
+table td:nth-child(5) {
+  width: 120px;
+  min-width: 120px;
+}
+
+/* Date columns */
+table th:nth-child(n+6):nth-child(-n+10),
+table td:nth-child(n+6):nth-child(-n+10) {
+  width: 100px;
+  min-width: 100px;
+}
+
+/* Actions column */
+table th:last-child,
+table td:last-child {
+  width: 100px;
+  min-width: 100px;
 }
 
 /* Phone number styling */
@@ -998,7 +1135,8 @@ table th:first-child {
 
 /* Sheet Data Input Component */
 .sheet-data-input {
-  max-width: 600px;
+  width: 100%;
+  max-width: 100%;
   margin: 0 auto;
 }
 
@@ -2327,6 +2465,7 @@ table th:first-child {
   display: flex;
   gap: 1rem;
   margin-bottom: 1.5rem;
+  margin-right: 1rem;
 }
 
 .view-toggle button {
@@ -2338,6 +2477,7 @@ table th:first-child {
   cursor: pointer;
   font-weight: 500;
   transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 .view-toggle button:hover {
@@ -3163,6 +3303,7 @@ table th:first-child {
   main {
     padding: 1.2rem;
   }
+}
 
   .student-header, .student-row {
     grid-template-columns: 0.5fr 1.5fr 2fr;
@@ -3201,6 +3342,12 @@ table th:first-child {
   .table-container {
     margin: 1rem 0;
     border-radius: 8px;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    position: relative;
+    padding: 0;
   }
 
   table {
@@ -3225,7 +3372,6 @@ table th:first-child {
     height: 20px;
     font-size: 12px;
   }
-}
 
 @media (max-width: 480px) {
   header {

@@ -57,10 +57,6 @@ npm run build
 
 The build files will be in the `dist` directory.
 
-## Live Demo
-
-The application is deployed and available at: [https://Divyaakula28.github.io/krishna-attendance-tracker](https://Divyaakula28.github.io/krishna-attendance-tracker)
-
 ## Technologies Used
 
 - React
@@ -71,16 +67,6 @@ The application is deployed and available at: [https://Divyaakula28.github.io/kr
 - CSS3 with responsive design
 - Recharts for analytics
 
-## Deployment
-
-To deploy the application to GitHub Pages:
-
-```
-npm run deploy
-```
-
-This will build the application and deploy it to the `gh-pages` branch of your repository.
-
 ## Notes on Google Sheets API
 
 This application uses Google OAuth2 for authentication with the Google Sheets API, providing:
@@ -89,6 +75,4 @@ This application uses Google OAuth2 for authentication with the Google Sheets AP
 2. User-specific permissions
 3. Robust error handling
 4. Real-time data synchronization
-"# kishna-attendance-tracker" 
-"# kishna-attendance-tracker" 
-"# kishna-attendance-tracker" 
+

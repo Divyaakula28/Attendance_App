@@ -3,7 +3,7 @@ import './App.css'
 import SheetDataDisplay from './components/SheetDataDisplay'
 import SheetDataInput from './components/SheetDataInput'
 import GoogleSheetsService from './services/GoogleSheetsService'
-import FooterAuth from './components/FooterAuth'
+import DirectFooterAuth from './components/DirectFooterAuth'
 
 function App() {
   const [activeTab, setActiveTab] = useState('display')
@@ -14,17 +14,17 @@ function App() {
   useEffect(() => {
     const initService = async () => {
       try {
-        await GoogleSheetsService.init()
-        setIsInitialized(true)
+        await GoogleSheetsService.init();
+        setIsInitialized(true);
       } catch (error) {
-        console.error('Failed to initialize Google Sheets service:', error)
-        setInitError('Failed to initialize Google Sheets service. The app will use sample data.')
-        setIsInitialized(true) // Still mark as initialized so the app can function
+        console.error('Failed to initialize Google Sheets service:', error);
+        setInitError('Failed to initialize Google Sheets service. The app will use sample data.');
+        setIsInitialized(true); // Still mark as initialized so the app can function with sample data
       }
     }
 
-    initService()
-  }, [])
+    initService();
+  }, []);
 
   // Show loading indicator while initializing
   if (!isInitialized) {
@@ -62,7 +62,7 @@ function App() {
         </button>
       </div>
 
-      <main>
+      <main style={{ width: '100%', maxWidth: '100%', padding: '1.8rem 0' }}>
         {activeTab === 'display' ? (
           <SheetDataDisplay />
         ) : (
@@ -74,7 +74,7 @@ function App() {
         {initError ? (
           <p><span className="error-message">{initError}</span></p>
         ) : (
-          <FooterAuth />
+          <DirectFooterAuth />
         )}
       </footer>
     </div>

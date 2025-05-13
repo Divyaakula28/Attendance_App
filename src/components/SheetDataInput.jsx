@@ -4,6 +4,7 @@ import AuthService from '../services/AuthService';
 import AttendanceModal from './AttendanceModal';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
+import '../styles/AttendanceCards.css';
 
 function SheetDataInput() {
   // Create a ref for the top of the component
@@ -19,7 +20,9 @@ function SheetDataInput() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [existingDates, setExistingDates] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [recordsPerPage] = useState(10); // Show 15 records per page
+  const [recordsPerPage] = useState(10); // Show 10 records per page
+  const [filters, setFilters] = useState({});
+  const [activeFilter, setActiveFilter] = useState(null);
 
   // Format date as YYYY-MM-DD string
   function formatDateForSheet(date) {
@@ -112,14 +115,43 @@ function SheetDataInput() {
     );
   };
 
-  // Calculate pagination values
-  const totalPages = Math.ceil(students.length / recordsPerPage);
+  // Apply filters to students
+  const getFilteredStudents = () => {
+    return students.filter(student => {
+      // Check if student matches all active filters
+      for (const [field, value] of Object.entries(filters)) {
+        if (value && student[field] !== value) {
+          return false;
+        }
+      }
+      return true;
+    });
+  };
+
+  // Calculate pagination values based on filtered students
+  const totalPages = Math.ceil(getFilteredStudents().length / recordsPerPage);
+
+  // Handle filter button click
+  const handleFilterClick = (e, field) => {
+    e.preventDefault(); // Prevent form submission
+    e.stopPropagation(); // Prevent event bubbling
+
+    // Toggle filter dropdown
+    setActiveFilter(activeFilter === field ? null : field);
+
+    // Get unique values for the selected field
+    if (field && activeFilter !== field) {
+      // This will be used to populate the filter dropdown
+      console.log(`Getting unique values for ${field}`);
+    }
+  };
 
   // Get current page records
   const getCurrentPageStudents = () => {
+    const filteredStudents = getFilteredStudents();
     const indexOfLastRecord = currentPage * recordsPerPage;
     const indexOfFirstRecord = indexOfLastRecord - recordsPerPage;
-    return students.slice(indexOfFirstRecord, indexOfLastRecord);
+    return filteredStudents.slice(indexOfFirstRecord, indexOfLastRecord);
   };
 
   // Change page
@@ -281,7 +313,7 @@ function SheetDataInput() {
 
   return (
     <div className="sheet-data-input" ref={topRef}>
-      <h2>Record Attendance</h2>
+      <h2 style={{ fontWeight: 700, color: '#1a237e', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Record Attendance</h2>
       {status.message && (
         <div className={`status-message ${status.type}`}>
           {status.message}
@@ -375,7 +407,7 @@ function SheetDataInput() {
           </button>
         </div>
       ) : (
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} style={{ width: '100%', maxWidth: '100%' }}>
           <div className="button-container">
             <button
               type="button"
@@ -387,17 +419,202 @@ function SheetDataInput() {
             </button>
           </div>
 
-          <div className="students-list">
-            <div className="student-header">
-              <div>ID</div>
-              <div>Name</div>
-              <div>Class</div>
-              <div>School</div>
-              <div>Attendance</div>
+          <div className="students-list full-width" style={{ width: '100%', maxWidth: '100%' }}>
+            {/* Table View for Desktop */}
+            <div className="students-list-table full-width" style={{ width: '100%', maxWidth: '100%' }}>
+              <div className="attendance-grid">
+                {/* Header Row */}
+                <div className="attendance-row header-row">
+                  <div className="attendance-cell header-cell id-cell">
+                    <button
+                      className={`filter-button ${activeFilter === 'id' ? 'active' : ''}`}
+                      title="Filter by ID"
+                      onClick={(e) => handleFilterClick(e, 'id')}
+                      type="button"
+                    >
+                      <span>ID</span>
+                    </button>
+                  </div>
+                  <div className="attendance-cell header-cell name-cell">
+                    <button
+                      className={`filter-button ${activeFilter === 'name' ? 'active' : ''}`}
+                      title="Filter by Name"
+                      onClick={(e) => handleFilterClick(e, 'name')}
+                      type="button"
+                    >
+                      <span>Name</span>
+                    </button>
+                  </div>
+                  <div className="attendance-cell header-cell class-cell">
+                    <button
+                      className={`filter-button ${activeFilter === 'class' ? 'active' : ''}`}
+                      title="Filter by Class"
+                      onClick={(e) => handleFilterClick(e, 'class')}
+                      type="button"
+                    >
+                      <span>Class</span>
+                    </button>
+                  </div>
+                  <div className="attendance-cell header-cell school-cell">
+                    <button
+                      className={`filter-button ${activeFilter === 'school' ? 'active' : ''}`}
+                      title="Filter by School"
+                      onClick={(e) => handleFilterClick(e, 'school')}
+                      type="button"
+                    >
+                      <span>School</span>
+                    </button>
+                  </div>
+                  <div className="attendance-cell header-cell attendance-cell">
+                    <button
+                      className={`filter-button ${activeFilter === 'attendanceStatus' ? 'active' : ''}`}
+                      title="Filter by Attendance"
+                      onClick={(e) => handleFilterClick(e, 'attendanceStatus')}
+                      type="button"
+                    >
+                      <span>Attendance</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Filter Dropdown */}
+                {activeFilter && (
+                  <div className="filter-dropdown" style={{
+                    position: 'fixed',
+                    top: (() => {
+                      const headerCell = document.querySelector(`.${activeFilter === 'id' ? 'id' :
+                                                                  activeFilter === 'name' ? 'name' :
+                                                                  activeFilter === 'class' ? 'class' :
+                                                                  activeFilter === 'school' ? 'school' : 'attendance'}-cell.header-cell`);
+                      if (headerCell) {
+                        const rect = headerCell.getBoundingClientRect();
+                        return `${rect.bottom}px`;
+                      }
+                      return '40px';
+                    })(),
+                    left: (() => {
+                      const headerCell = document.querySelector(`.${activeFilter === 'id' ? 'id' :
+                                                                  activeFilter === 'name' ? 'name' :
+                                                                  activeFilter === 'class' ? 'class' :
+                                                                  activeFilter === 'school' ? 'school' : 'attendance'}-cell.header-cell`);
+                      if (headerCell) {
+                        const rect = headerCell.getBoundingClientRect();
+                        return `${rect.left}px`;
+                      }
+                      return activeFilter === 'id' ? '0' :
+                             activeFilter === 'name' ? '60px' :
+                             activeFilter === 'class' ? '240px' :
+                             activeFilter === 'school' ? '390px' : '540px';
+                    })(),
+                    zIndex: 1000,
+                    width: (() => {
+                      const headerCell = document.querySelector(`.${activeFilter === 'id' ? 'id' :
+                                                                  activeFilter === 'name' ? 'name' :
+                                                                  activeFilter === 'class' ? 'class' :
+                                                                  activeFilter === 'school' ? 'school' : 'attendance'}-cell.header-cell`);
+                      if (headerCell) {
+                        const rect = headerCell.getBoundingClientRect();
+                        return `${rect.width}px`;
+                      }
+                      return activeFilter === 'id' ? '60px' :
+                             activeFilter === 'name' ? '180px' :
+                             activeFilter === 'class' ? '150px' :
+                             activeFilter === 'school' ? '150px' : '150px';
+                    })()
+                  }}>
+                    <div className="filter-dropdown-header">
+                      <span>Filter: {activeFilter === 'id' ? 'StudentID' :
+                             activeFilter === 'name' ? 'StudentName' :
+                             activeFilter === 'class' ? 'Class' :
+                             activeFilter === 'school' ? 'SchoolName' : 'Attendance'}</span>
+                      <button
+                        type="button"
+                        className="clear-filter-btn"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          // Clear filter for this field
+                          const newFilters = {...filters};
+                          delete newFilters[activeFilter];
+                          setFilters(newFilters);
+                          setActiveFilter(null);
+                        }}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                    <div className="filter-dropdown-content">
+                      {/* Get unique values for the selected field */}
+                      {Array.from(new Set(students.map(student => student[activeFilter] || 'N/A')))
+                        .sort((a, b) => {
+                          // Sort numerically if possible, otherwise alphabetically
+                          const numA = Number(a);
+                          const numB = Number(b);
+                          if (!isNaN(numA) && !isNaN(numB)) {
+                            return numA - numB;
+                          }
+                          return String(a).localeCompare(String(b));
+                        })
+                        .map(value => (
+                          <label key={value} className="filter-checkbox-label">
+                            <input
+                              type="checkbox"
+                              checked={filters[activeFilter] === value}
+                              onChange={(e) => {
+                                // Update filters
+                                setFilters({
+                                  ...filters,
+                                  [activeFilter]: e.target.checked ? value : null
+                                });
+                                // Close the dropdown after selection
+                                if (e.target.checked) {
+                                  setTimeout(() => setActiveFilter(null), 300);
+                                }
+                              }}
+                            />
+                            <span className="filter-value-text">{value}</span>
+                          </label>
+                        ))
+                      }
+                    </div>
+                  </div>
+                )}
+
+                {/* Data Rows */}
+                {getCurrentPageStudents().map(student => (
+                  <div key={`grid-${student.id}`} className="attendance-row data-row">
+                    <div className="attendance-cell id-cell">{student.id}</div>
+                    <div className="attendance-cell name-cell">{student.name || 'Unknown'}</div>
+                    <div className="attendance-cell class-cell">{student.class || 'N/A'}</div>
+                    <div className="attendance-cell school-cell">{student.school || 'N/A'}</div>
+                    <div className="attendance-cell attendance-cell">
+                      <div className="status-buttons">
+                        <button
+                          type="button"
+                          className={`status-button present ${student.attendanceStatus === 'Present' ? 'selected' : ''}`}
+                          onClick={() => handleAttendanceChange(student.id, 'Present')}
+                          disabled={loading}
+                        >
+                          <span className="status-icon">✓</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          className={`status-button absent ${student.attendanceStatus === 'Absent' ? 'selected' : ''}`}
+                          onClick={() => handleAttendanceChange(student.id, 'Absent')}
+                          disabled={loading}
+                        >
+                          <span className="status-icon">✗</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
+            {/* Card View for Mobile */}
             {getCurrentPageStudents().map(student => (
-              <div key={student.id} className="attendance-card">
+              <div key={`card-${student.id}`} className="attendance-card">
                 <div className="attendance-card-header">
                   <div className="attendance-card-id">{student.id}</div>
                   <div className="attendance-card-name">{student.name || 'Unknown'}</div>
@@ -421,7 +638,7 @@ function SheetDataInput() {
                       <label className={`status-radio-label status-present ${student.attendanceStatus === 'Present' ? 'selected' : ''}`}>
                         <input
                           type="radio"
-                          name={`status-${student.id}`}
+                          name={`status-card-${student.id}`}
                           value="Present"
                           checked={student.attendanceStatus === 'Present'}
                           onChange={() => handleAttendanceChange(student.id, 'Present')}
@@ -433,7 +650,7 @@ function SheetDataInput() {
                       <label className={`status-radio-label status-absent ${student.attendanceStatus === 'Absent' ? 'selected' : ''}`}>
                         <input
                           type="radio"
-                          name={`status-${student.id}`}
+                          name={`status-card-${student.id}`}
                           value="Absent"
                           checked={student.attendanceStatus === 'Absent'}
                           onChange={() => handleAttendanceChange(student.id, 'Absent')}

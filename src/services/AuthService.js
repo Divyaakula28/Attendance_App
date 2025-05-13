@@ -7,7 +7,7 @@ class AuthService {
     this.API_KEY = 'AIzaSyAAxHsGKMs7L4QHAPmMAa6kUgP0zPngCxg';
 
     // The scopes we need for Google Sheets
-    this.SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
+    this.SCOPES = 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email';
 
     // Discovery docs for the API
     this.DISCOVERY_DOCS = ['https://sheets.googleapis.com/$discovery/rest?version=v4'];
@@ -31,6 +31,12 @@ class AuthService {
     this.isInitializing = false;
     this.isInitialized = false;
     this.initError = null;
+
+    // Check if we're running in a development environment
+    this.isDevelopment = window.location.hostname === 'localhost' ||
+                         window.location.hostname === '127.0.0.1';
+
+    console.log(`Running in ${this.isDevelopment ? 'development' : 'production'} mode`);
   }
 
   // Initialize the Google API client
@@ -76,6 +82,7 @@ class AuthService {
         script1.src = 'https://apis.google.com/js/api.js';
         script1.async = true;
         script1.defer = true;
+        script1.crossOrigin = "anonymous"; // Add crossOrigin attribute
         script1.onerror = (error) => {
           console.error('Failed to load GAPI script:', error);
           this.isInitializing = false;
@@ -84,7 +91,10 @@ class AuthService {
         };
         script1.onload = () => {
           console.log('GAPI script loaded successfully');
-          loadGsi();
+          // Add a small delay to ensure the script is fully initialized
+          setTimeout(() => {
+            loadGsi();
+          }, 500);
         };
         document.body.appendChild(script1);
       };
@@ -103,6 +113,7 @@ class AuthService {
         script2.src = 'https://accounts.google.com/gsi/client';
         script2.async = true;
         script2.defer = true;
+        script2.crossOrigin = "anonymous"; // Add crossOrigin attribute
         script2.onerror = (error) => {
           console.error('Failed to load GSI script:', error);
           this.isInitializing = false;
@@ -111,7 +122,10 @@ class AuthService {
         };
         script2.onload = () => {
           console.log('GSI script loaded successfully');
-          this.initGapiClient(resolve, reject);
+          // Add a small delay to ensure the script is fully initialized
+          setTimeout(() => {
+            this.initGapiClient(resolve, reject);
+          }, 500);
         };
         document.body.appendChild(script2);
       };
@@ -229,7 +243,15 @@ class AuthService {
           error_callback: (error) => {
             console.error('Token client error:', error);
             this.updateSignInStatus(false);
-            alert('Authentication failed. Please try again.');
+
+            // Handle specific CORS errors
+            if (error && error.type === 'popup_closed') {
+              console.log('User closed the popup window');
+            } else if (error && error.type === 'popup_blocked') {
+              alert('Popup was blocked. Please allow popups for this site and try again.');
+            } else {
+              alert('Authentication failed. Please try again.');
+            }
           }
         });
       } catch (tokenInitError) {
@@ -358,36 +380,31 @@ class AuthService {
   // Fetch user profile
   async fetchUserProfile() {
     try {
-      console.log('Fetching user profile...');
       if (!this.accessToken) {
-        console.warn('No access token available to fetch user profile');
-        return;
+        console.error('No access token available');
+        return null;
       }
 
+      console.log('Fetching user profile with token');
       const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
         headers: {
-          Authorization: `Bearer ${this.accessToken}`
+          'Authorization': `Bearer ${this.accessToken}`
         }
       });
 
-      if (response.ok) {
-        const userInfo = await response.json();
-        console.log('User profile fetched successfully:', userInfo);
-        this.currentUser = {
-          profile: {
-            id: userInfo.sub,
-            name: userInfo.name,
-            email: userInfo.email,
-            imageUrl: userInfo.picture
-          }
-        };
-      } else {
-        console.error('Failed to fetch user profile:', response.status, response.statusText);
-        const errorText = await response.text();
-        console.error('Error response:', errorText);
+      if (!response.ok) {
+        console.error('Profile fetch failed:', response.status, response.statusText);
+        throw new Error(`Failed to fetch profile: ${response.status}`);
       }
+
+      const data = await response.json();
+      console.log('User profile data:', data);
+      this.currentUser = data;
+      return data;
     } catch (error) {
       console.error('Error fetching user profile:', error);
+      this.currentUser = null;
+      return null;
     }
   }
 
@@ -412,75 +429,100 @@ class AuthService {
 
   // Sign in the user
   signIn() {
-    if (!this.isInitialized) {
-      console.warn('Auth service not initialized, initializing now...');
-      return this.init().then(() => this.signIn());
-    }
+    console.log('Starting sign-in process...');
 
-    if (!this.tokenClient) {
-      console.error('Token client not initialized');
-
-      // Try to initialize the token client again
-      console.log('Attempting to re-initialize auth service...');
-      return this.init()
-        .then(() => {
-          if (!this.tokenClient) {
-            console.error('Failed to initialize token client after retry');
-            alert('Failed to initialize Google authentication. Please refresh the page and try again.');
-            return Promise.reject(new Error('Token client not initialized after retry'));
-          }
-          return this.signIn();
-        })
-        .catch(error => {
-          console.error('Error re-initializing auth service:', error);
-          alert('Authentication error. Please refresh the page and try again.');
-          return Promise.reject(error);
-        });
-    }
-
+    // Create a new promise for the sign-in process
     return new Promise((resolve, reject) => {
       try {
-        console.log('Requesting access token...');
+        // First, make sure the Google Identity Services library is loaded
+        if (!window.google || !window.google.accounts) {
+          console.log('Google Identity Services not loaded, loading now...');
 
-        // Clear any previous tokens
-        localStorage.removeItem('gapi_access_token');
-        localStorage.removeItem('gapi_token_expiry');
-
-        // Request a token with explicit consent to ensure fresh token
-        this.tokenClient.requestAccessToken({
-          prompt: 'consent',
-          hint: 'divya2000akula@gmail.com'
-        });
-
-        // Set a timeout to detect if the sign-in flow doesn't complete
-        const timeout = setTimeout(() => {
-          console.warn('Sign-in flow did not complete within expected time');
-          // We don't reject here because the flow might still complete
-        }, 10000);
-
-        // Listen for sign-in state changes
-        const unsubscribe = this.onSignInChanged((isSignedIn) => {
-          clearTimeout(timeout);
-          unsubscribe();
-
-          if (isSignedIn) {
-            console.log('Sign-in successful');
-            resolve();
-          } else {
-            // This might be called if the user cancels the sign-in
-            // We don't reject here because the flow is still considered successful
-            console.log('User did not complete sign-in');
-            resolve();
-          }
-        });
-
-        resolve();
+          // Load the Google Identity Services library
+          const script = document.createElement('script');
+          script.src = 'https://accounts.google.com/gsi/client';
+          script.async = true;
+          script.defer = true;
+          script.onload = () => {
+            console.log('Google Identity Services loaded, continuing sign-in...');
+            this.continueSignIn(resolve, reject);
+          };
+          script.onerror = (error) => {
+            console.error('Failed to load Google Identity Services:', error);
+            reject(new Error('Failed to load Google Identity Services'));
+          };
+          document.body.appendChild(script);
+        } else {
+          // Google Identity Services is already loaded
+          console.log('Google Identity Services already loaded, continuing sign-in...');
+          this.continueSignIn(resolve, reject);
+        }
       } catch (error) {
-        console.error('Sign in error:', error);
-        alert('Sign-in failed. Please try again.');
+        console.error('Error in signIn:', error);
         reject(error);
       }
     });
+  }
+
+  // Continue the sign-in process after Google Identity Services is loaded
+  continueSignIn(resolve, reject) {
+    try {
+      console.log('Initializing token client...');
+
+      // Clear any previous tokens
+      localStorage.removeItem('gapi_access_token');
+      localStorage.removeItem('gapi_token_expiry');
+
+      // Create a token client
+      const tokenClient = window.google.accounts.oauth2.initTokenClient({
+        client_id: this.CLIENT_ID,
+        scope: this.SCOPES,
+        callback: (response) => {
+          console.log('Token response received');
+
+          if (response.error) {
+            console.error('Error in token response:', response.error);
+            reject(new Error(`Token error: ${response.error}`));
+            return;
+          }
+
+          console.log('Access token received');
+          this.accessToken = response.access_token;
+
+          // Store the token and expiry
+          localStorage.setItem('gapi_access_token', response.access_token);
+          const expiryTime = new Date().getTime() + (response.expires_in * 1000);
+          localStorage.setItem('gapi_token_expiry', expiryTime.toString());
+
+          // Set the token for API calls if GAPI is available
+          if (window.gapi && window.gapi.client) {
+            window.gapi.client.setToken({ access_token: response.access_token });
+          }
+
+          // Fetch user profile
+          this.fetchUserProfile().then(() => {
+            console.log('User profile fetched, updating sign-in status');
+            this.updateSignInStatus(true);
+            resolve(true);
+          }).catch(error => {
+            console.error('Error fetching user profile:', error);
+            // Still consider sign-in successful even if profile fetch fails
+            this.updateSignInStatus(true);
+            resolve(true);
+          });
+        }
+      });
+
+      console.log('Requesting access token...');
+      tokenClient.requestAccessToken({
+        prompt: 'consent'
+      });
+
+      console.log('Access token request sent');
+    } catch (error) {
+      console.error('Error in continueSignIn:', error);
+      reject(error);
+    }
   }
 
   // Sign out the user
@@ -514,6 +556,26 @@ class AuthService {
 
   // Check if the user is signed in
   isUserSignedIn() {
+    // Check if we have a stored token that's still valid
+    const storedToken = localStorage.getItem('gapi_access_token');
+    const storedExpiry = localStorage.getItem('gapi_token_expiry');
+
+    if (storedToken && storedExpiry && new Date().getTime() < parseInt(storedExpiry)) {
+      // We have a valid token in storage
+      if (!this.isSignedIn) {
+        console.log('Found valid token in storage but isSignedIn is false, updating state');
+        this.accessToken = storedToken;
+        this.isSignedIn = true;
+      }
+      return true;
+    }
+
+    // No valid token in storage
+    if (this.isSignedIn && !this.accessToken) {
+      console.log('isSignedIn is true but no access token, updating state');
+      this.isSignedIn = false;
+    }
+
     return this.isSignedIn;
   }
 
@@ -539,11 +601,26 @@ class AuthService {
 
   // Get user profile information
   getUserProfile() {
-    if (!this.isSignedIn || !this.currentUser) {
+    // Check if we're signed in
+    if (!this.isUserSignedIn()) {
       return null;
     }
 
-    return this.currentUser.profile;
+    // Check if we have a current user
+    if (!this.currentUser) {
+      console.log('User is signed in but no profile available');
+      // Try to fetch the profile if we have a token but no profile
+      if (this.accessToken) {
+        console.log('Have token but no profile, fetching profile...');
+        // Schedule a profile fetch but don't wait for it
+        this.fetchUserProfile().catch(error => {
+          console.error('Error fetching user profile in getUserProfile:', error);
+        });
+      }
+      return null;
+    }
+
+    return this.currentUser;
   }
 }
 

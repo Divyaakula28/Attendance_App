@@ -400,23 +400,25 @@ function SheetDataDisplay() {
     <div className="sheet-data-display">
       <h2>Attendance Records</h2>
       <div className="sheet-controls">
-        <button onClick={fetchData} className="refresh-button" title="Refresh Data">
-          <span className="refresh-icon"><DharmaChakraIcon /></span>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <button onClick={fetchData} className="refresh-button" title="Refresh Data">
+            <span className="refresh-icon"><DharmaChakraIcon /></span>
+          </button>
 
-        <div className="view-toggle">
-          <button
-            className={viewMode === 'data' ? 'active' : ''}
-            onClick={() => setViewMode('data')}
-          >
-            View Data
-          </button>
-          <button
-            className={viewMode === 'analytics' ? 'active' : ''}
-            onClick={() => setViewMode('analytics')}
-          >
-            View Analytics
-          </button>
+          <div className="view-toggle">
+            <button
+              className={viewMode === 'data' ? 'active' : ''}
+              onClick={() => setViewMode('data')}
+            >
+              View Data
+            </button>
+            <button
+              className={viewMode === 'analytics' ? 'active' : ''}
+              onClick={() => setViewMode('analytics')}
+            >
+              View Analytics
+            </button>
+          </div>
         </div>
 
         {viewMode === 'data' && (
