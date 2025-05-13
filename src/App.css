@@ -14,7 +14,7 @@
 }
 
 #root {
-  max-width: 100%;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 0;
   font-family: 'Poppins', 'Noto Sans', system-ui, Avenir, Helvetica, Arial, sans-serif;
@@ -24,6 +24,8 @@
   width: 100%;
   box-sizing: border-box;
   overflow-x: hidden;
+  position: relative;
+  left: 0;
 }
 
 .app-container {
@@ -41,9 +43,10 @@
   transition: all 0.3s ease;
   position: relative;
   width: 100%;
-  max-width: 100%;
+  max-width: 1200px;
   margin: 0 auto;
   box-sizing: border-box;
+  align-self: center;
 }
 
 .app-container::before {
@@ -3286,13 +3289,14 @@ table td:last-child {
 @media (max-width: 768px) {
   #root {
     padding: 0;
+    max-width: 100%;
   }
 
   .app-container {
     border-radius: 8px;
     width: 100%;
     max-width: 100%;
-    margin: 0;
+    margin: 0 auto;
   }
 
   header {
@@ -3394,6 +3398,18 @@ table td:last-child {
   }
 
 @media (max-width: 480px) {
+  #root {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .app-container {
+    max-width: 100%;
+    width: 100%;
+    margin: 0 auto;
+    border-radius: 0;
+  }
+
   header {
     padding: 1.2rem 0;
     width: 100%;
