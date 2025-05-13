@@ -35,6 +35,8 @@ body {
   width: 100%;
   overflow-x: hidden;
   box-sizing: border-box;
+  display: flex;
+  justify-content: center;
 }
 
 h1 {
