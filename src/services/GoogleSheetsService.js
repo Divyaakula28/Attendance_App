@@ -8,8 +8,6 @@ class GoogleSheetsService {
     this.API_KEY = 'AIzaSyAAxHsGKMs7L4QHAPmMAa6kUgP0zPngCxg'; // Your Google API key
 
     // ⚠️ IMPORTANT: Replace this with your actual Google Sheet ID
-    // You can find this in the URL of your Google Sheet:
-    // https://docs.google.com/spreadsheets/d/YOUR_SPREADSHEET_ID/edit
     this.SPREADSHEET_ID = '1jXNAywv0yYTKwMDninwFVsDL8mtbcqmtdanLiH_9MS0';
 
     // Flag to use sample data when API fails - set to true to ensure app works even if API fails
@@ -17,6 +15,13 @@ class GoogleSheetsService {
 
     // Flag to indicate if we're using OAuth - set to true to use OAuth by default
     this.useOAuth = true;
+
+    // Check if we're running on GitHub Pages
+    const isGitHubPages = window.location.hostname.includes('github.io');
+    if (isGitHubPages) {
+      console.log('Running on GitHub Pages - using OAuth authentication');
+      this.useOAuth = true; // Force OAuth on GitHub Pages
+    }
 
     // Flag to indicate if the spreadsheet is accessible
     this.isSpreadsheetAccessible = false;
