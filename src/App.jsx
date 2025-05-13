@@ -62,7 +62,7 @@ function App() {
         </button>
       </div>
 
-      <main style={{ width: '100%', maxWidth: '100%', padding: '1.8rem 0' }}>
+      <main style={{ width: '100%', maxWidth: '100%', padding: '1.8rem 0', boxSizing: 'border-box' }}>
         {activeTab === 'display' ? (
           <SheetDataDisplay />
         ) : (
