@@ -385,6 +385,86 @@ class GoogleSheetsService {
     }
   }
 
+
+
+  // Get attendance data for a specific date
+  async getAttendanceForDate(sheetName = 'Students', dateStr) {
+    try {
+      console.log(`Getting attendance data for date: ${dateStr}`);
+
+      // First, get the current headers to find the date column
+      const headerData = await this.getSheetData(sheetName, 'A1:Z1');
+      if (!headerData || !headerData[0]) {
+        throw new Error('Could not retrieve headers');
+      }
+
+      const headers = headerData[0];
+      console.log('Headers found:', headers);
+
+      // Check if the date column exists
+      const dateColumnIndex = headers.findIndex(header => header === dateStr);
+      console.log(`Looking for date column with header "${dateStr}", found at index: ${dateColumnIndex}`);
+
+      if (dateColumnIndex === -1) {
+        console.log(`No attendance data found for date: ${dateStr}`);
+        return null; // Date column doesn't exist
+      }
+
+      // Get the date column letter
+      const dateColumnLetter = this.columnIndexToLetter(dateColumnIndex);
+      console.log(`Found date column at index ${dateColumnIndex} (${dateColumnLetter})`);
+
+      // Get all student data including the date column
+      const studentData = await this.getSheetData(sheetName, 'A1:Z1000');
+      console.log('Student data rows:', studentData.length);
+
+      // Find the ID column
+      let idColIndex = headers.findIndex(header =>
+        header && header.toLowerCase().includes('id') ||
+        header && header.toLowerCase().includes('number') ||
+        header && header.toLowerCase().includes('phone'));
+      console.log('ID column index:', idColIndex);
+
+      // If we couldn't find the ID column by header, use the first column
+      if (idColIndex === -1) idColIndex = 0;
+
+      // Create a map of student IDs to attendance status
+      const attendanceMap = {};
+
+      // Start from row 1 (skip header row)
+      for (let i = 1; i < studentData.length; i++) {
+        const row = studentData[i];
+        if (row && row[idColIndex]) {
+          const studentId = row[idColIndex];
+
+          // Check if the date column exists in this row
+          let status = 'Present'; // Default
+
+          if (row.length > dateColumnIndex && row[dateColumnIndex]) {
+            const rawStatus = row[dateColumnIndex].trim();
+
+            // Normalize the status to either "Present" or "Absent"
+            if (rawStatus.toLowerCase().includes('absent')) {
+              status = 'Absent';
+            } else if (rawStatus.toLowerCase().includes('present')) {
+              status = 'Present';
+            }
+          }
+
+          console.log(`Student ${studentId} has status "${status}" for date ${dateStr}`);
+          attendanceMap[studentId] = status;
+        }
+      }
+
+      console.log(`Retrieved attendance data for ${Object.keys(attendanceMap).length} students on ${dateStr}`);
+      console.log('Attendance map:', attendanceMap);
+      return attendanceMap;
+    } catch (error) {
+      console.error('Error getting attendance for date:', error);
+      return null;
+    }
+  }
+
   // Add or update a date column in the sheet
   async addDateColumn(sheetName = 'Students', dateStr) {
     try {

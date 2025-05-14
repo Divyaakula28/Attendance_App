@@ -54,15 +54,37 @@ function SheetDataInput() {
 
       // Try to fetch real student data
       const studentData = await GoogleSheetsService.getStudentData(sheetName);
+      console.log('Fetched student data:', studentData);
 
-      // Add attendance status field to each student (default: Present)
-      const studentsWithStatus = studentData.map(student => ({
-        ...student,
-        attendanceStatus: 'Present'
-      }));
+      // Format date for column header (e.g., "2025-05-06")
+      const formattedDate = formatDateForSheet(selectedDate);
+      console.log('Formatted date for attendance lookup:', formattedDate);
+
+      // Check if there's existing attendance data for this date
+      console.log('Checking for existing attendance data for date:', formattedDate);
+      const existingAttendance = await GoogleSheetsService.getAttendanceForDate(sheetName, formattedDate);
+      console.log('Existing attendance data:', existingAttendance);
+
+      // Add attendance status field to each student
+      const studentsWithStatus = studentData.map(student => {
+        // If we have existing attendance data for this student, use it
+        if (existingAttendance && existingAttendance[student.id]) {
+          console.log(`Student ${student.id} has existing attendance: ${existingAttendance[student.id]}`);
+          return {
+            ...student,
+            attendanceStatus: existingAttendance[student.id]
+          };
+        }
+        // Otherwise default to Present
+        console.log(`Student ${student.id} has no existing attendance, defaulting to Present`);
+        return {
+          ...student,
+          attendanceStatus: 'Present'
+        };
+      });
 
       setStudents(studentsWithStatus);
-      console.log('Successfully fetched student data:', studentsWithStatus);
+      console.log('Final student data with attendance status:', studentsWithStatus);
     } catch (error) {
       console.error('Error fetching students:', error);
 
@@ -76,7 +98,7 @@ function SheetDataInput() {
     } finally {
       setLoadingStudents(false);
     }
-  }, [sheetName]);
+  }, [sheetName, selectedDate]);
 
   // Check if a date already has attendance records
   const checkExistingDates = useCallback(async () => {
@@ -326,7 +348,13 @@ function SheetDataInput() {
           <DatePicker
             id="attendanceDate"
             selected={selectedDate}
-            onChange={(date) => setSelectedDate(date)}
+            onChange={async (date) => {
+              console.log('Date changed to:', date);
+              setSelectedDate(date);
+              // Reload student data with attendance status for the new date immediately
+              await fetchStudents();
+              console.log('Finished reloading student data for new date');
+            }}
             disabled={loading}
             dateFormat="MMMM d, yyyy"
             className="custom-datepicker"
@@ -465,7 +493,8 @@ function SheetDataInput() {
                       <span>School</span>
                     </button>
                   </div>
-                  <div className="attendance-cell header-cell attendance-cell">
+                  <div className="
+                   header-cell attendance-cell">
                     <button
                       className={`filter-button ${activeFilter === 'attendanceStatus' ? 'active' : ''}`}
                       title="Filter by Attendance"

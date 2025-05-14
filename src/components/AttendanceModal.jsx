@@ -17,13 +17,22 @@ function AttendanceModal({
   // Initialize attendance data when students prop changes
   useEffect(() => {
     if (students && students.length > 0) {
-      setAttendanceData(students.map(student => ({
-        ...student,
-        attendanceStatus: 'Present' // Default to present
-      })));
+      // Use the existing attendance status from the students prop
+      setAttendanceData(students);
       setCurrentIndex(0);
       setIsCompleted(false);
-      setSummary({ present: 0, absent: 0 });
+
+      // Calculate initial summary based on existing attendance data
+      const initialSummary = students.reduce((summary, student) => {
+        if (student.attendanceStatus === 'Present') {
+          summary.present += 1;
+        } else if (student.attendanceStatus === 'Absent') {
+          summary.absent += 1;
+        }
+        return summary;
+      }, { present: 0, absent: 0 });
+
+      setSummary(initialSummary);
     }
   }, [students]);
 
